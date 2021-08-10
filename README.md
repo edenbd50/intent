@@ -82,6 +82,16 @@ Intent()
         ..setAction(Action.ACTION_ASSIST)
         ..startActivity().catchError((e) => print(e));
 ```
+### Launch Specific class of activity with Extras:
+```dart
+Intent()
+        ..setPackage("com.example")
+        ..setClassName("com.example.ui.activity.ActivityA")
+        ..putExtra("custom_tag", "custom_value")          
+        ..startActivity().catchError((e) => print(e));
+```
+
+
 ### Report Bug :
 ```dart
 Intent()
