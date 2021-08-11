@@ -106,6 +106,35 @@ class Intent {
 
     return _channel
         .invokeMethod('startActivityForResult', parameters)
-        .then((data) => List<String>.from(data));
+        .then((data) {
+      List<String>.from(data);
+    });
+  }
+
+  /// When you're interested in obtaining some result
+  /// from intent, then this method needs to be called. Returns
+  /// a future, which will be resolved if platform call gets
+  /// successful, otherwise results into error.
+  Future<Map<String, String>> startActivityForResultClass(
+      {bool createChooser: false}) {
+    Map<String, dynamic> parameters = {};
+
+    if (_action != null) parameters['action'] = _action;
+    if (_type != null) parameters['type'] = _type;
+    if (_package != null) parameters['package'] = _package;
+    if (_className != null) parameters['className'] = _className;
+    if (_data != null) parameters['data'] = _data.toString();
+    if (_category.isNotEmpty) parameters['category'] = _category;
+    if (_flag.isNotEmpty) parameters['flag'] = _flag;
+    if (_extra.isNotEmpty) parameters['extra'] = _extra;
+    if (_typeInfo.isNotEmpty) parameters['typeInfo'] = _typeInfo;
+
+    parameters['chooser'] = createChooser;
+
+    return _channel
+        .invokeMethod('startActivityForResult', parameters)
+        .then((data) {
+      return new Map<String, String>.from(data);
+    });
   }
 }
