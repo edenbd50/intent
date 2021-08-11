@@ -86,7 +86,7 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
                 if (call.argument<String>("package") != null) {
                     intent.`package` = call.argument<String>("package")
                     if(call.argument<String>("className") != null)
-                        intent.setClassName(call.argument<String>("package"), call.argument<String>("className"))
+                        intent.setClassName(call.argument<String>("package")!!, call.argument<String>("className")!!)
                 }
 
                 if (call.argument<String>("data") != null)
