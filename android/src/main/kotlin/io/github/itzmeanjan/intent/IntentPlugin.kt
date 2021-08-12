@@ -25,16 +25,17 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
     var methodCheckFlag: Boolean = true
 
     companion object {
+
         @JvmStatic
         fun registerWith(registrar: Registrar) {
-            val channel = MethodChannel(registrar.messenger(), "intent")
+            var channel = MethodChannel(registrar.messenger(), "intent")
             channel.setMethodCallHandler(IntentPlugin(registrar, registrar.activity()))
         }
 
     }
 
     override fun onMethodCall(call: MethodCall, rawResult: Result) {
-        var result = MethodResultWrapper(rawResult);
+        var result = MethodResultWrapper(rawResult,activity);
         // when an activity will be started for getting some result from it, this callback function will handle it
         // then processes received data and send that back to user
         registrar.addActivityResultListener { requestCode, resultCode, intent ->
@@ -192,17 +193,10 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
             "startActivityForResult" -> {
                 activityCompletedCallBack = object : ActivityCompletedCallBack {
                     override fun sendDocument(data: List<String>) {
-                        if(methodCheckFlag) {
-                            methodCheckFlag = false;
                             result.success(data)
-                        }
                     }
                     override fun sendActivityForResults(data: Map<String,String>) {
-                        if(methodCheckFlag) {
-                            methodCheckFlag = false;
                             result.success(data)
-                        }
-
                     }
                 }
                 val activityImageVideoCaptureCode = 998
