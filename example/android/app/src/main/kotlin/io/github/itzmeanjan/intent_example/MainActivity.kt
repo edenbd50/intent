@@ -1,13 +1,12 @@
 package io.github.itzmeanjan.intent_example
 
-import android.os.Bundle
-
-import io.flutter.app.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugins.GeneratedPluginRegistrant
 
-class MainActivity: FlutterActivity() {
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    GeneratedPluginRegistrant.registerWith(this)
+class MainActivity: io.flutter.embedding.android.FlutterActivity() {
+
+  override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+    GeneratedPluginRegistrant.registerWith(flutterEngine)
   }
+
 }

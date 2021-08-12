@@ -8,84 +8,76 @@ import android.os.Environment
 import android.provider.ContactsContract
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
-import io.flutter.plugin.common.PluginRegistry.Registrar
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
-class IntentPlugin(private val registrar: Registrar, private val activity: Activity) : MethodCallHandler {
+class IntentPlugin : FlutterActivity(), FlutterPlugin, MethodCallHandler {
 
     private var activityCompletedCallBack: ActivityCompletedCallBack? = null
     lateinit var toBeCapturedImageLocationURI: Uri
     lateinit var tobeCapturedImageLocationFilePath: File
+    private lateinit var channel: MethodChannel
 
-    companion object {
-        @JvmStatic
-        fun registerWith(registrar: Registrar) {
-            val channel = MethodChannel(registrar.messenger(), "intent")
-            channel.setMethodCallHandler(IntentPlugin(registrar, registrar.activity()))
-        }
-
-    }
-
-    override fun onMethodCall(call: MethodCall, result: Result) {
-
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
         // when an activity will be started for getting some result from it, this callback function will handle it
         // then processes received data and send that back to user
-        registrar.addActivityResultListener { requestCode, resultCode, intent ->
-            when (requestCode) {
-                999 -> {
-                    if (resultCode == Activity.RESULT_OK) {
-                        val filePaths = mutableListOf<String>()
-                        if (intent.clipData != null) {
-                            var i = 0
-                            while (i < intent.clipData?.itemCount!!) {
-                                if (intent.type == ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE)
-                                    filePaths.add(resolveContacts(intent.clipData?.getItemAt(i)?.uri!!))
-                                else
-                                    filePaths.add(uriToFilePath(intent.clipData?.getItemAt(i)?.uri!!))
-                                i++
-                            }
-                            activityCompletedCallBack?.sendDocument(filePaths)
-                        } else {
+        when (requestCode) {
+            999 -> {
+                if (resultCode == Activity.RESULT_OK) {
+                    val filePaths = mutableListOf<String>()
+                    if (intent.clipData != null) {
+                        var i = 0
+                        while (i < intent.clipData?.itemCount!!) {
                             if (intent.type == ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE)
-                                filePaths.add(resolveContacts(intent.data!!))
+                                filePaths.add(resolveContacts(intent.clipData?.getItemAt(i)?.uri!!))
                             else
-                                filePaths.add(uriToFilePath(intent.data!!))
-                            activityCompletedCallBack?.sendDocument(filePaths)
+                                filePaths.add(uriToFilePath(intent.clipData?.getItemAt(i)?.uri!!))
+                            i++
                         }
-                        true
+                        activityCompletedCallBack?.sendDocument(filePaths)
                     } else {
-                        activityCompletedCallBack?.sendDocument(listOf())
-                        false
+                        if (intent.type == ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE)
+                            filePaths.add(resolveContacts(intent.data!!))
+                        else
+                            filePaths.add(uriToFilePath(intent.data!!))
+                        activityCompletedCallBack?.sendDocument(filePaths)
                     }
-                }
-                998 -> {
-                    if (resultCode == Activity.RESULT_OK) {
-                        activityCompletedCallBack?.sendDocument(listOf(tobeCapturedImageLocationFilePath.absolutePath))
-                        true
-                    } else
-                        false
-                }
-                997 -> {
-                    if (resultCode == Activity.RESULT_OK){
-                        var bundle = intent.extras
-                        var map = convertBundleToMap(bundle)
-                        activityCompletedCallBack?.sendActivityForResults(map)
-                        true
-                    } else
-                        false
-                }
-                else -> {
+                    true
+                } else {
+                    activityCompletedCallBack?.sendDocument(listOf())
                     false
                 }
             }
+            998 -> {
+                if (resultCode == Activity.RESULT_OK) {
+                    activityCompletedCallBack?.sendDocument(listOf(tobeCapturedImageLocationFilePath.absolutePath))
+                    true
+                } else
+                    false
+            }
+            997 -> {
+                if (resultCode == Activity.RESULT_OK) {
+                    var bundle = intent.extras
+                    var map = convertBundleToMap(bundle)
+                    activityCompletedCallBack?.sendActivityForResults(map)
+                    true
+                } else
+                    false
+            }
+            else -> {
+                false
+            }
         }
+    }
 
+    override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
             // when we're not interested in result of activity started, we call this method via platform channel
             "startActivity" -> {
@@ -94,7 +86,7 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
 
                 if (call.argument<String>("package") != null) {
                     intent.`package` = call.argument<String>("package")
-                    if(call.argument<String>("className") != null)
+                    if (call.argument<String>("className") != null)
                         intent.setClassName(call.argument<String>("package")!!, call.argument<String>("className")!!)
                 }
 
@@ -193,7 +185,8 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
                     override fun sendDocument(data: List<String>) {
                         result.success(data)
                     }
-                    override fun sendActivityForResults(data: Map<String,String>) {
+
+                    override fun sendActivityForResults(data: Map<String, String>) {
                         result.success(data)
                     }
                 }
@@ -203,7 +196,7 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
                 intent.action = call.argument<String>("action")
                 if (call.argument<String>("package") != null) {
                     intent.`package` = call.argument<String>("package")
-                    if(call.argument<String>("className") != null) {
+                    if (call.argument<String>("className") != null) {
                         intent.setClassName(call.argument<String>("package")!!, call.argument<String>("className")!!)
                         activityIdentifierCode = 997
                     }
@@ -304,12 +297,12 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
                                 tobeCapturedImageLocationFilePath = it
                                 toBeCapturedImageLocationURI = FileProvider.getUriForFile(activity.applicationContext, "${activity.packageName}.io.github.itzmeanjan.intent.fileProvider", it)
                                 intent.putExtra(MediaStore.EXTRA_OUTPUT, toBeCapturedImageLocationURI)
-                                activity.startActivityForResult(intent, activityImageVideoCaptureCode)
+                                startActivityForResult(intent, activityImageVideoCaptureCode)
                             }
                         }
                     } else {
                         if (call.argument<Boolean>("chooser")!!) activity.startActivityForResult(Intent.createChooser(intent, "Sharing"), activityIdentifierCode)
-                        else activity.startActivityForResult(intent, activityIdentifierCode)
+                        else startActivityForResult(intent, activityIdentifierCode)
                     }
                 } catch (e: Exception) {
                     result.error("Error", e.toString(), null)
@@ -369,15 +362,24 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
         val map: MutableMap<String, String> = HashMap()
         val keys = resource?.keySet()
         if (keys != null) {
-            for (key in keys){
+            for (key in keys) {
                 map.put(key, resource?.getString(key).toString());
             }
         }
         return map
     }
+
+    override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        channel = MethodChannel(binding.binaryMessenger, "intent")
+        channel.setMethodCallHandler(IntentPlugin())
+    }
+
+    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        channel.setMethodCallHandler(null)
+    }
 }
 
 interface ActivityCompletedCallBack {
     fun sendDocument(data: List<String>)
-    fun sendActivityForResults(data: Map<String,String>)
+    fun sendActivityForResults(data: Map<String, String>)
 }
