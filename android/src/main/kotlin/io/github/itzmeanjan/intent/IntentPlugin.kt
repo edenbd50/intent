@@ -23,7 +23,7 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
     lateinit var toBeCapturedImageLocationURI: Uri
     lateinit var tobeCapturedImageLocationFilePath: File
     var methodCheckFlag: Boolean = true
-
+    var result: MethodChannel.Result? = null;
     companion object {
 
         @JvmStatic
@@ -35,7 +35,7 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
     }
 
     override fun onMethodCall(call: MethodCall, rawResult: Result) {
-        var result = MethodResultWrapper(rawResult,activity);
+        result = MethodResultWrapper(rawResult,activity);
         // when an activity will be started for getting some result from it, this callback function will handle it
         // then processes received data and send that back to user
         registrar.addActivityResultListener { requestCode, resultCode, intent ->
@@ -183,7 +183,8 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
                     if (call.argument<Boolean>("chooser")!!) activity.startActivity(Intent.createChooser(intent, "Sharing"))
                     else activity.startActivity(intent)
                 } catch (e: Exception) {
-                    result.error("Error", e.toString(), null)
+                    result?.error("Error", e.toString(), null)
+                    result = null
                 }
             }
             // but if we're interested in getting data from activity launched, we need to call this method
@@ -193,10 +194,12 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
             "startActivityForResult" -> {
                 activityCompletedCallBack = object : ActivityCompletedCallBack {
                     override fun sendDocument(data: List<String>) {
-                            result.success(data)
+                            result?.success(data)
+                            result = null
                     }
                     override fun sendActivityForResults(data: Map<String,String>) {
-                            result.success(data)
+                            result?.success(data)
+                            result = null
                     }
                 }
                 val activityImageVideoCaptureCode = 998
@@ -314,10 +317,14 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
                         else activity.startActivityForResult(intent, activityIdentifierCode)
                     }
                 } catch (e: Exception) {
-                    result.error("Error", e.toString(), null)
+                    result?.error("Error", e.toString(), null)
+                    result = null
                 }
             }
-            else -> result.notImplemented()
+            else -> {
+                result?.notImplemented()
+                result = null
+            }
         }
     }
 
