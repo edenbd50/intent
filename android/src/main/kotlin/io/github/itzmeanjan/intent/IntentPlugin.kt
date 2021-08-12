@@ -3,6 +3,7 @@ package io.github.itzmeanjan.intent
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.os.Bundle
 import android.os.Environment
 import android.provider.ContactsContract
 import android.provider.MediaStore
@@ -15,14 +16,14 @@ import io.flutter.plugin.common.PluginRegistry.Registrar
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.collections.ArrayList
 
 class IntentPlugin(private val registrar: Registrar, private val activity: Activity) : MethodCallHandler {
 
     private var activityCompletedCallBack: ActivityCompletedCallBack? = null
     lateinit var toBeCapturedImageLocationURI: Uri
     lateinit var tobeCapturedImageLocationFilePath: File
-
+    var result: MethodChannel.Result? = null;
+    
     companion object {
         @JvmStatic
         fun registerWith(registrar: Registrar) {
@@ -32,8 +33,8 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
 
     }
 
-    override fun onMethodCall(call: MethodCall, result: Result) {
-
+    override fun onMethodCall(call: MethodCall, rawResult: Result) {
+        result = rawResult;
         // when an activity will be started for getting some result from it, this callback function will handle it
         // then processes received data and send that back to user
         registrar.addActivityResultListener { requestCode, resultCode, intent ->
@@ -71,6 +72,15 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
                     } else
                         false
                 }
+                997 -> {
+                    if (resultCode == Activity.RESULT_OK){
+                        var bundle = intent.extras
+                        var map = convertBundleToMap(bundle)
+                        activityCompletedCallBack?.sendActivityForResults(map)
+                        true
+                    } else
+                        false
+                }
                 else -> {
                     false
                 }
@@ -82,8 +92,13 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
             "startActivity" -> {
                 val intent = Intent()
                 intent.action = call.argument<String>("action")
-                if (call.argument<String>("package") != null)
+
+                if (call.argument<String>("package") != null) {
                     intent.`package` = call.argument<String>("package")
+                    if(call.argument<String>("className") != null)
+                        intent.setClassName(call.argument<String>("package")!!, call.argument<String>("className")!!)
+                }
+
                 if (call.argument<String>("data") != null)
                     intent.data = Uri.parse(call.argument<String>("data"))
 
@@ -167,7 +182,8 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
                     if (call.argument<Boolean>("chooser")!!) activity.startActivity(Intent.createChooser(intent, "Sharing"))
                     else activity.startActivity(intent)
                 } catch (e: Exception) {
-                    result.error("Error", e.toString(), null)
+                    result?.error("Error", e.toString(), null)
+                    result = null
                 }
             }
             // but if we're interested in getting data from activity launched, we need to call this method
@@ -177,18 +193,28 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
             "startActivityForResult" -> {
                 activityCompletedCallBack = object : ActivityCompletedCallBack {
                     override fun sendDocument(data: List<String>) {
-                        result.success(data)
+                        result?.success(data)
+                        result = null
+                    }
+                    override fun sendActivityForResults(data: Map<String,String>) {
+                        result?.success(data)
+                        result = null
                     }
                 }
                 val activityImageVideoCaptureCode = 998
-                val activityIdentifierCode = 999
+                var activityIdentifierCode = 999
                 val intent = Intent()
                 intent.action = call.argument<String>("action")
-                if (call.argument<String>("package") != null)
+                if (call.argument<String>("package") != null) {
                     intent.`package` = call.argument<String>("package")
+                    if(call.argument<String>("className") != null) {
+                        intent.setClassName(call.argument<String>("package")!!, call.argument<String>("className")!!)
+                        activityIdentifierCode = 997
+                    }
+                }
                 if (call.argument<String>("data") != null)
                     intent.data = Uri.parse(call.argument<String>("data"))
-                
+
                 // typeInfo parsed into associative array, which can be used for type casting extra data
                 val typeInfo = call.argument<Map<String, String>>("typeInfo")
 
@@ -217,7 +243,7 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
                             else -> {
                                 // if type information for this extra key is
                                 // provided by developer, then use that type information
-                                if (typeInfo?.containsKey(it.key)!!) {
+                                if (typeInfo?.containsKey(it.key) != null) {
 
                                     when (typeInfo[it.key]) {
                                         // casting into singular types
@@ -290,10 +316,15 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
                         else activity.startActivityForResult(intent, activityIdentifierCode)
                     }
                 } catch (e: Exception) {
-                    result.error("Error", e.toString(), null)
+                    result?.error("Error", e.toString(), null)
+                    result = null
                 }
             }
-            else -> result.notImplemented()
+            else -> {
+                result?.notImplemented()
+                result = null
+            }
+
         }
     }
 
@@ -337,8 +368,25 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
         return tmp!!
     }
 
+    /**
+     * Convert ResourceBundle into a Map object.
+     *
+     * @param resource a resource bundle to convert.
+     * @return Map a map version of the resource bundle.
+     */
+    private fun convertBundleToMap(resource: Bundle?): Map<String, String> {
+        val map: MutableMap<String, String> = HashMap()
+        val keys = resource?.keySet()
+        if (keys != null) {
+            for (key in keys){
+                map.put(key, resource?.getString(key).toString());
+            }
+        }
+        return map
+    }
 }
 
 interface ActivityCompletedCallBack {
     fun sendDocument(data: List<String>)
+    fun sendActivityForResults(data: Map<String,String>)
 }
