@@ -32,8 +32,8 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
 
     }
 
-    override fun onMethodCall(call: MethodCall, result: Result) {
-
+    override fun onMethodCall(call: MethodCall, rawResult: Result) {
+        var result = MethodResultWrapper(rawResult);
         // when an activity will be started for getting some result from it, this callback function will handle it
         // then processes received data and send that back to user
         registrar.addActivityResultListener { requestCode, resultCode, intent ->
