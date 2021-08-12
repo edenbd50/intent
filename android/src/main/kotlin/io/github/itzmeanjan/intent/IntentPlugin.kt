@@ -22,6 +22,7 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
     private var activityCompletedCallBack: ActivityCompletedCallBack? = null
     lateinit var toBeCapturedImageLocationURI: Uri
     lateinit var tobeCapturedImageLocationFilePath: File
+    var methodCheckFlag: Boolean = true
 
     companion object {
         @JvmStatic
@@ -191,10 +192,17 @@ class IntentPlugin(private val registrar: Registrar, private val activity: Activ
             "startActivityForResult" -> {
                 activityCompletedCallBack = object : ActivityCompletedCallBack {
                     override fun sendDocument(data: List<String>) {
-                        result.success(data)
+                        if(methodCheckFlag) {
+                            methodCheckFlag = false;
+                            result.success(data)
+                        }
                     }
                     override fun sendActivityForResults(data: Map<String,String>) {
-                        result.success(data)
+                        if(methodCheckFlag) {
+                            methodCheckFlag = false;
+                            result.success(data)
+                        }
+
                     }
                 }
                 val activityImageVideoCaptureCode = 998
